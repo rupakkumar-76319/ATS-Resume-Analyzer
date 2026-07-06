@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Resume Analyzer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 min-h-screen text-gray-800">
+    <div class="max-w-4xl mx-auto py-12 px-4">
+        <header class="text-center mb-12">
+            <h1 class="text-4xl font-extrabold text-blue-600 mb-2">AI-Powered Resume Analyzer</h1>
+            <p class="text-gray-600">Optimize your resume against ATS algorithms in seconds.</p>
+        </header>
+
+        <div class="bg-white shadow-md rounded-lg p-6 mb-8">
+            <form id="analyzerForm" class="space-y-6">
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-2">Job Description</label>
+                    <textarea id="jobDescription" rows="6" class="w-full border border-gray-300 rounded-md p-3 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Paste the job requirements here..." required></textarea>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-2">Upload Resume (PDF, DOCX, TXT)</label>
+                    <input type="file" id="resumeFile" accept=".pdf,.docx,.doc,.txt" class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" required>
+                </div>
+
+                <button type="submit" id="submitBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-md transition duration-200">
+                    Analyze Resume
+                </button>
+            </form>
+        </div>
+
+        <div id="loading" class="hidden text-center py-6">
+            <div class="animate-spin inline-block w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full mb-2"></div>
+            <p class="text-gray-600">Analyzing metrics via Gemini AI...</p>
+        </div>
+
+        <div id="results" class="hidden bg-white shadow-md rounded-lg p-6 space-y-6">
+            <div class="flex items-center justify-between border-b pb-4">
+                <h2 class="text-2xl font-bold text-gray-800">Analysis Results</h2>
+                <div class="text-center">
+                    <span id="matchScore" class="text-4xl font-black text-green-600">0%</span>
+                    <p class="text-xs font-bold text-gray-500 uppercase tracking-wider">ATS Match Score</p>
+                </div>
+            </div>
+
+            <div>
+                <h3 class="font-bold text-green-700 mb-2">✓ Matched Keywords</h3>
+                <div id="matchedKeywords" class="flex flex-wrap gap-2"></div>
+            </div>
+
+            <div>
+                <h3 class="font-bold text-red-700 mb-2">✗ Missing Keywords</h3>
+                <div id="missingKeywords" class="flex flex-wrap gap-2"></div>
+            </div>
+
+            <div>
+                <h3 class="font-bold text-gray-700 mb-2">Strengths</h3>
+                <ul id="strengthsList" class="list-disc list-inside space-y-1 text-gray-600"></ul>
+            </div>
+
+            <div>
+                <h3 class="font-bold text-gray-700 mb-2">Actionable Feedback</h3>
+                <ul id="feedbackList" class="list-disc list-inside space-y-1 text-gray-600"></ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('analyzerForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const jobDescription = document.getElementById('jobDescription').value;
+            const resumeFile = document.getElementById('resumeFile').files[0];
+            
+            const submitBtn = document.getElementById('submitBtn');
+            const loading = document.getElementById('loading');
+            const results = document.getElementById('results');
+
+            // UI adjustments for loading state
+            submitBtn.disabled = true;
+            loading.classList.remove('hidden');
+            results.classList.add('hidden');
+
+            const formData = new FormData();
+            formData.append('job_description', jobDescription);
+            formData.append('file', resumeFile);
+
+            try {
+                const response = await fetch('/resume_Analyzer', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) throw new Error('API Execution Failed');
+                const data = await response.json();
+
+                // Inject Match Score
+                document.getElementById('matchScore').innerText = `${data.match_score}%`;
+                
+                // Toggle score color classes based on performance
+                const scoreEl = document.getElementById('matchScore');
+                if (data.match_score < 50) {
+                    scoreEl.className = "text-4xl font-black text-red-600";
+                } else if (data.match_score < 75) {
+                    scoreEl.className = "text-4xl font-black text-yellow-600";
+                } else {
+                    scoreEl.className = "text-4xl font-black text-green-600";
+                }
+
+                // Render Badge Keyword elements
+                renderBadges('matchedKeywords', data.matched_keywords, 'bg-green-100 text-green-800');
+                renderBadges('missingKeywords', data.missing_keywords, 'bg-red-100 text-red-800');
+
+                // Render Descriptive Lists
+                renderList('strengthsList', data.strengths);
+                renderList('feedbackList', data.actionable_feedback);
+
+                results.classList.remove('hidden');
+            } catch (error) {
+                alert('Error analyzing document. Please double check requirements or API key configurations.');
+            } finally {
+                submitBtn.disabled = false;
+                loading.classList.add('hidden');
+            }
+        });
+
+        function renderBadges(elementId, items, colorClass) {
+            const container = document.getElementById(elementId);
+            container.innerHTML = items.length ? '' : '<span class="text-gray-400 text-sm">None detected</span>';
+            items.forEach(item => {
+                const span = document.createElement('span');
+                span.className = `px-2.5 py-1 rounded-full text-xs font-semibold ${colorClass}`;
+                span.innerText = item;
+                container.appendChild(span);
+            });
+        }
+
+        function renderList(elementId, items) {
+            const container = document.getElementById(elementId);
+            container.innerHTML = items.length ? '' : '<li class="text-gray-400 text-sm">No remarks generated</li>';
+            items.forEach(item => {
+                const li = document.createElement('li');
+                li.innerText = item;
+                container.appendChild(li);
+            });
+        }
+    </script>
+</body>
+</html>

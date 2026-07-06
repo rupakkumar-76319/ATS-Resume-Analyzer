@@ -1,5 +1,6 @@
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException,  Form, UploadFile, File
+from fastapi import FastAPI, HTTPException, Form, UploadFile, File
+from fastapi.responses import HTMLResponse, FileResponse
 import os
 import pypdf
 import docx2txt
@@ -51,9 +52,10 @@ def extract_text(file_bytes: bytes, filename: str) -> str:
             raise e
         raise HTTPException(status_code=500, detail=f"Error parsing file: {str(e)}")
 
-@app.get("/")
+@app.get("/", response_class=HTMLResponse)
 def home():
-    return {"message":"Resume Analyzer is running on the /resume_Analyzer. So, Go to /resume_Analyzer"}
+    with open("templates/index.html", "r", encoding="utf-8") as f:
+        return f.read()
 
 @app.post("/resume_Analyzer")
 async def analyze_resume(
