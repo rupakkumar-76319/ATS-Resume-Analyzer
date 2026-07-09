@@ -35,7 +35,7 @@ Corporate hiring pathways rely closely on automated Applicant Tracking Systems t
 
 Here is a breakdown of how the logic operates behind the scenes across every major module:
 
-### 1. Module Initializations & Security Shield
+### 4.1. Module Initializations & Security Shield
 ```python
 load_dotenv()
 app = FastAPI()
@@ -43,3 +43,86 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 if not GEMINI_API_KEY:
     raise RuntimeError("Gemini API Key is not set in the .env file..")
+```
+
+What it does: Imports structural ecosystem dependencies and initializes the core application object. load_dotenv() acts as a security gateway, looking inside system files for your private token configurations. If GEMINI_API_KEY is missing, the code immediately throws a RuntimeError to block broken execution processes.
+
+### 4.2. Multi-Format Text Extraction Pipeline
+```Python
+def extract_text(file_bytes: bytes, filename: str) -> str:
+    file_extension = filename.split(".")[-1].lower()
+    text = ""
+```
+# Routing Logic for PDF, DOCX, and TXT extensions
+
+What it does: Receives raw document bytes and determines their file format.
+PDF: Loads the binary stream through pypdf.PdfReader without writing to disk, reading layout vectors page by page.
+DOCX/DOC: Utilizes docx2txt to scan open XML word formats.
+TXT: Decodes bytes to standard utf-8 text strings.
+Validation: If the resulting text block is blank, it throws a 400 Bad Request exception to let the user know the file could not be parsed.
+
+### 4.3. Core Analytical Endpoint (POST /resume_Analyzer)
+```Python
+@app.post("/resume_Analyzer")
+async def analyze_resume(job_description: str = Form(...), file: UploadFile = File(...)):
+```
+What it does: Serves as the main gateway for data processing. It accepts multi-part form input: a string for the job description and an uploaded document payload.
+The Schema Contract: It passes a structural JSON dictionary model down to the AI model:
+match_score: An exact rating out of 100.
+matched_keywords/missing_keywords: Comprehensive technical string arrays.
+strengths/actionable_feedback: Written professional guidance insights.
+
+### 4.4. Asynchronous Network Commits
+```Python
+async with httpx.AsyncClient() as client:
+    response = await client.post(url, json=payload, timeout=30.0)
+```
+What it does: Opens a non-blocking asynchronous HTTP network tunnel, firing the serialized data payload over to Google's remote endpoints. The application stays responsive to other users while waiting for the AI calculation to finish. Once received, it parses the payload via json.loads and returns clean JSON structured text directly to the user interface.
+
+### 4.5. End-to-End Workflow Execution Pipeline
+The flowchart below traces data movement as it flows through the system:
+
+[Candidate Interface] 
+       │ 
+       ▼ (1. Submits Text Job Description + Binary Resume File via Form)
+[FastAPI Router Enters] 
+       │ 
+       ▼ (2. Passes raw bytes into specialized in-memory extraction tools)
+[File Parsing Layer] ──(Validates text string outputs)──> [Error Checks Fail? Drop with 400]
+       │
+       ▼ (3. Bundles extracted text with Strict JSON Output Specifications)
+[API Payload Builder] 
+       │ 
+       ▼ (4. Triggers Non-Blocking Asynchronous Network Request via HTTPX)
+[Google Gemini Engine] 
+       │ 
+       ▼ (5. Evaluates alignment match and sends back strict schema data)
+[FastAPI Output Matrix] ──(Transforms data arrays)──> [Final Clean JSON User Payload]
+### 4.6. Local Operations & Quickstart Manual
+Follow these quick setup steps to get your service running on your machine:
+
+1. Workspace Verification
+Ensure your project files match this exact structural pattern within your working folder:
+
+Plaintext
+my-resume-analyzer/
+├── main.py
+├── requirements.txt
+├── Dockerfile
+└── .env
+2. Configure Environment Parameters
+Create a file named exactly .env inside the root workspace folder and add your private API key:
+
+### Code snippet
+GEMINI_API_KEY=**********************************************
+3. Spin Up Application Directly
+Install the required application dependencies and start your local server using Uvicorn:
+
+### Bash
+``` Python
+pip install -r requirements.txt
+uvicorn main:app --reload --host 127.0.0.1 --port 8000
+```
+Open http://127.0.0.1:8000/docs in your browser. Expand the green POST option block, click "Try it out", upload your test resume file, paste an open job description, and click Execute to view your structured analysis report instantly!
+
+***
